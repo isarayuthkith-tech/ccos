@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C-COS Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">C-COS <span class="logo-sub" id="logoSubtitle">/ Character Card Operating System — @niste</span></div>
+  <div class="topbar-spacer"></div>
+
+  <div id="studioTopbarItems" style="display:flex;align-items:center;gap:8px;">
+    <div class="api-pill" onclick="openSettings()" title="API Configuration">
+      <div class="api-dot" id="apiDot"></div>
+      <span id="apiLabel">no api key</span>
+    </div>
+    <button class="topbar-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">☀ light</button>
+    <button class="topbar-btn" title="Saved Cards" onclick="toggleHistory()">history</button>
+    <div class="overflow-menu-wrap" id="studioOverflowWrap">
+      <button class="overflow-menu-btn" onclick="toggleOverflowMenu('studioOverflow')" title="More options">··· more</button>
+      <div class="overflow-menu" id="studioOverflow">
+        <button class="overflow-menu-item" onclick="toggleShortcutsModal();closeOverflowMenus()">⌨ keyboard shortcuts</button>
+        <div class="overflow-menu-divider"></div>
+        <button class="overflow-menu-item" onclick="toggleSupport();closeOverflowMenus()">♥ support the creator</button>
+        <button class="overflow-menu-item" onclick="studioToggleTOS();closeOverflowMenus()">privacy &amp; terms</button>
+        <div class="overflow-menu-divider"></div>
+        <button class="overflow-menu-item danger" onclick="closeOverflowMenus();confirmNuke()">⚠ nuke all data</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="codexTopbarItems" style="display:none;align-items:center;gap:8px;">
+    <button class="topbar-btn" onclick="codexImportLorebook()">↑ import</button>
+    <button class="topbar-btn" onclick="codexOpenExportModal()">↓ export</button>
+    <div style="width:1px;height:20px;background:var(--border);flex-shrink:0;"></div>
+    <button class="topbar-btn" id="codexThemeToggle" onclick="toggleTheme()">☀ light</button>
+    <div class="api-pill" onclick="document.getElementById('codexApiKey').focus();document.getElementById('codexApiKey').scrollIntoView({behavior:'smooth'})" title="Codex API Key">
+      <div class="api-dot" id="codexApiDot"></div>
+      <span id="codexApiStatus">no key</span>
+    </div>
+    <div class="overflow-menu-wrap" id="codexOverflowWrap">
+      <button class="overflow-menu-btn" onclick="toggleOverflowMenu('codexOverflow')" title="More options">··· more</button>
+      <div class="overflow-menu" id="codexOverflow">
+        <button class="overflow-menu-item" onclick="toggleSupport();closeOverflowMenus()">♥ support the creator</button>
+        <button class="overflow-menu-item" onclick="codexToggleTOS();closeOverflowMenus()">privacy &amp; terms</button>
+        <div class="overflow-menu-divider"></div>
+        <button class="overflow-menu-item danger" onclick="closeOverflowMenus();confirmClearAll()">⚠ nuke all entries</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-switcher">
+    <button class="mode-btn active" id="modeBtnStudio" onclick="switchMode('studio')">studio</button>
+    <button class="mode-btn" id="modeBtnCodex" onclick="switchMode('codex')">codex</button>
+  </div>
+</div>
+
+<div id="app-studio" style="display:flex;flex:1;flex-direction:column;">
+
+<div class="workspace" id="studioWorkspace">
+
+  <div class="panel-left" id="studioPanelLeft">
+    <div class="panel-header">
+      <div class="panel-title">Configuration</div>
+      <button class="panel-theme-toggle" onclick="togglePanelTheme('studioPanelLeft')" title="Toggle this panel's theme"><span class="ptt-dot"></span><span class="ptt-label">panel</span></button>
+    </div>
+
+    <div class="onboarding-banner" id="onboardingBanner">
+      <button class="onboarding-close" onclick="dismissOnboarding()" title="Dismiss">×</button>
+      <div class="onboarding-banner-title">✦ Getting Started</div>
+      <div class="onboarding-banner-steps">
+        <div class="onboarding-step"><div class="onboarding-step-num">1</div><span>Pick a provider preset below &amp; enter your API key</span></div>
+        <div class="onboarding-step"><div class="onboarding-step-num">2</div><span>Type your model name and confirm vision support</span></div>
+        <div class="onboarding-step"><div class="onboarding-step-num">3</div><span>Upload a character image in the center panel</span></div>
+        <div class="onboarding-step"><div class="onboarding-step-num">4</div><span>Hit Generate — your card appears on the right</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Provider</span>
+        <span class="section-chevron open">▾</span>
+      </div>
+      <div class="section-body open">
+        <div class="input-group">
+          <label>API Provider</label>
+          <div class="tag-row">
+            <button class="tag" onclick="setPresetUrl('https://api.openai.com/v1', 'openai')">OpenAI</button>
+            <button class="tag" onclick="setPresetUrl('https://api.anthropic.com/v1', 'claude')">Claude</button>
+            <button class="tag" onclick="setPresetUrl('https://generativelanguage.googleapis.com/v1beta', 'gemini')">Gemini</button>
+            <button class="tag" onclick="setPresetUrl('http://127.0.0.1:5001/v1', 'openai')">LM Studio</button>
+            <button class="tag" onclick="setPresetUrl('http://127.0.0.1:11434/v1', 'openai')">Ollama</button>
+            <button class="tag" onclick="setPresetUrl('http://127.0.0.1:1234/v1', 'openai')">KoboldCpp</button>
+          </div>
+          <input type="text" id="providerUrl" placeholder="https://api.openai.com/v1" oninput="saveConfig();updateApiStatus();updateActiveBadge();updateGenBtnHint()" autocomplete="off" spellcheck="false">
+          <div class="provider-url-hint">e.g. https://openrouter.ai/api/v1 · any OpenAI-compatible endpoint</div>
+        </div>
+        <div class="input-group">
+          <label>API Format</label>
+          <select id="apiFormat" onchange="saveConfig();updateActiveBadge()">
+            <option value="openai">OpenAI-compatible</option>
+            <option value="claude">Anthropic (Claude)</option>
+            <option value="gemini">Google Gemini</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Model</label>
+          <input type="text" id="modelSelect" placeholder="e.g. gemini-3.1-pro-preview" oninput="saveConfig();updateActiveBadge();updateMultimodalWarn()" autocomplete="off" spellcheck="false">
+          <div class="multimodal-warn" id="multimodalWarn">
+            ⚠ This tool requires a multimodal model with vision support.
+            <div class="toggle-row" style="margin-top:8px;margin-bottom:0;">
+              <label style="font-size:var(--font-xs);">I confirm this model supports image input</label>
+              <div class="toggle" id="multimodalConfirm" onclick="this.classList.toggle('on');saveConfig();updateGenBtnHint()"></div>
+            </div>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>API Key</label>
+          <div class="key-row">
+            <input type="password" id="apiKey" placeholder="paste key here…" onchange="saveConfig()" oninput="updateApiStatus();updateGenBtnHint();checkOnboarding()">
+            <div class="icon-btn" title="Show/hide key" onclick="toggleKeyVis()">👁</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Parameters</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="input-group">
+          <label>Temperature</label>
+          <div class="slider-row">
+            <input type="range" min="0" max="2" step="0.05" value="1" id="temp" oninput="document.getElementById('tempVal').textContent=parseFloat(this.value).toFixed(2);saveConfig()">
+            <span class="slider-val" id="tempVal">1.00</span>
+          </div>
+        </div>
+        <div class="input-group" id="maxTokGroup">
+          <label>Max Tokens</label>
+          <div class="slider-row">
+            <input type="range" min="512" max="8192" step="256" value="4096" id="maxTok" oninput="document.getElementById('maxTokVal').textContent=this.value;saveConfig()">
+            <span class="slider-val" id="maxTokVal">4096</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Top P</label>
+          <div class="slider-row">
+            <input type="range" min="0" max="1" step="0.05" value="0.95" id="topP" oninput="document.getElementById('topPVal').textContent=parseFloat(this.value).toFixed(2);saveConfig()">
+            <span class="slider-val" id="topPVal">0.95</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Context Window</label>
+          <div class="slider-row">
+            <input type="range" min="1024" max="200000" step="1024" value="32768" id="contextWindow" oninput="document.getElementById('contextWindowVal').textContent=formatCtx(parseInt(this.value));saveConfig()">
+            <span class="slider-val" id="contextWindowVal">32k</span>
+          </div>
+        </div>
+        <div class="toggle-row"><label>Streaming</label><div class="toggle on" id="streamToggle" onclick="this.classList.toggle('on');saveConfig()"></div></div>
+        <div class="toggle-row"><label>Thinking phase (Gemini)</label><div class="toggle on" id="thinkToggle" onclick="this.classList.toggle('on');saveConfig()"></div></div>
+        <div class="toggle-row"><label>JLLM mode (&lt;2k tokens)</label><div class="toggle" id="jllmToggle" onclick="this.classList.toggle('on'); saveConfig(); updateJLLMModeUI();"></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Scenario</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="scenario-grid">
+          <button class="scenario-btn active" data-scenario="none" onclick="setScenario('none', this)"><span class="s-label">Auto</span><span class="s-sub">let model decide</span></button>
+          <button class="scenario-btn" data-scenario="A" onclick="setScenario('A', this)"><span class="s-label">A · Arrangement</span><span class="s-sub">charged</span></button>
+          <button class="scenario-btn" data-scenario="B" onclick="setScenario('B', this)"><span class="s-label">B · Debt</span><span class="s-sub">dangerous</span></button>
+          <button class="scenario-btn" data-scenario="C" onclick="setScenario('C', this)"><span class="s-label">C · Performance</span><span class="s-sub">desperate</span></button>
+          <button class="scenario-btn" data-scenario="D" onclick="setScenario('D', this)"><span class="s-label">D · Return</span><span class="s-sub">bittersweet</span></button>
+          <button class="scenario-btn" data-scenario="E" onclick="setScenario('E', this)"><span class="s-label">E · Fracture</span><span class="s-sub">dark/charged</span></button>
+          <button class="scenario-btn" data-scenario="F" onclick="setScenario('F', this)"><span class="s-label">F · Erotic</span><span class="s-sub">explicit/raw</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Manual Override</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="preset-bar">
+          <select id="presetSelect" onchange="loadPreset(this.value)" title="Load a saved preset">
+            <option value="">— presets —</option>
+          </select>
+          <div class="icon-btn" onclick="togglePresetSaveRow()" title="Save current override as preset" style="font-size:16px;">+</div>
+          <div class="icon-btn" onclick="deleteSelectedPreset()" title="Delete selected preset" style="font-size:16px;color:var(--danger);">×</div>
+        </div>
+        <div class="preset-save-row" id="presetSaveRow">
+          <input type="text" id="presetNameInput" placeholder="Preset name…" onkeydown="if(event.key==='Enter')savePreset();if(event.key==='Escape')togglePresetSaveRow()">
+          <button class="tool-btn" onclick="savePreset()">Save</button>
+          <button class="tool-btn" onclick="togglePresetSaveRow()">Cancel</button>
+        </div>
+        <div class="override-block">
+          <textarea id="overrideInput" placeholder="TONE: dark&#10;BAN: additional words&#10;SCENARIO: B&#10;NO EXPLICIT" oninput="studioQueueDraftSave()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Friction Pattern</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="input-group">
+          <label>Friction Pattern</label>
+          <select id="frictionSelect" onchange="saveConfig()">
+            <option value="">— auto —</option>
+            <option value="COMPARTMENTALIZATION">Compartmentalization</option>
+            <option value="EXCEPTIONALISM">Exceptionalism</option>
+            <option value="PERFORMANCE AS PROTECTION">Performance as Protection</option>
+            <option value="CONTROL AS SAFETY">Control as Safety</option>
+            <option value="DEBT AS DISTANCE">Debt as Distance</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Feedback Loop</label>
+          <select id="loopSelect" onchange="saveConfig()">
+            <option value="">— auto —</option>
+            <option value="PROXIMITY/AVOIDANCE">Proximity / Avoidance</option>
+            <option value="PERFORMANCE/EXPOSURE">Performance / Exposure</option>
+            <option value="CONTROL/COLLAPSE">Control / Collapse</option>
+            <option value="DENIAL/PROOF">Denial / Proof</option>
+            <option value="SACRIFICE/RESENTMENT">Sacrifice / Resentment</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Friction Visibility</label>
+          <select id="visibilitySelect" onchange="saveConfig()">
+            <option value="">— auto —</option>
+            <option value="INVISIBLE">Invisible</option>
+            <option value="VISIBLE BUT DENIED">Visible but Denied</option>
+            <option value="VISIBLE AND ACKNOWLEDGED">Visible and Acknowledged</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-center" id="studioPanelCenter">
+    <div class="panel-header">
+      <div class="panel-title">Character Input</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="badge badge-amber" id="activeBadge">gemini / flash-2.5</span>
+      </div>
+    </div>
+
+    <div class="step-guide">
+      <div class="step active" id="step1">
+        <div class="step-num">1</div>
+        <span class="step-label">Upload Image</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step" id="step2">
+        <div class="step-num">2</div>
+        <span class="step-label">Add Context (optional)</span>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step" id="step3">
+        <div class="step-num">3</div>
+        <span class="step-label">Generate</span>
+      </div>
+    </div>
+
+    <div class="prompt-area">
+      <div>
+        <div class="prompt-label">Step 1 — Character Image <span style="color:var(--danger);font-style:italic;text-transform:none;font-size:var(--font-xs);letter-spacing:0;">*required</span></div>
+        <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()" ondragover="dropZoneDragOver(event)" ondragleave="dropZoneDragLeave(event)" ondrop="dropZoneDrop(event)">
+          <div class="drop-idle" id="dropIdle">
+            <div class="drop-icon">⬆</div>
+            <div class="drop-text">Drop image here or click to browse</div>
+            <div class="drop-sub">PNG · JPG · WEBP · GIF — multiple images supported</div>
+            <div class="drop-sub-paste">⌘/Ctrl+V to paste from clipboard</div>
+          </div>
+          <div class="paste-flash" id="pasteFlash">Pasting image…</div>
+          <div class="drop-preview" id="dropPreview" style="display:none;">
+            <div class="drop-preview-grid" id="previewGrid"></div>
+            <div class="drop-preview-info"><span id="previewName" class="preview-name"></span><button class="preview-clear" onclick="event.stopPropagation();clearAllImages()" title="Clear all">×</button></div>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none" onchange="handleFileSelect(event)">
+      </div>
+
+      <div>
+        <div class="prompt-label">Step 2 — Additional Context <span style="color:var(--muted);text-transform:none;font-style:italic;letter-spacing:0;font-size:var(--font-xs);">(optional)</span></div>
+        <textarea id="contextInput" class="main-textarea" style="min-height:80px;flex:unset;" placeholder="World setting, relationship context, tone notes, character name…" oninput="studioQueueDraftSave()"></textarea>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="gen-btn" id="genBtn" onclick="generate()">
+        <div class="spinner" id="spinner"></div>
+        <span id="genBtnText">Generate Card</span>
+      </button>
+      <button class="gen-btn" id="batchBtn" onclick="openBatchModal()" title="Generate multiple cards from a queue" style="background:transparent;border-color:rgba(212,175,96,0.45);color:var(--accent);padding:10px 14px;">
+        <span>Batch</span>
+      </button>
+      <span class="gen-btn-hint" id="genBtnHint"></span>
+      <button class="tool-btn" id="testBtn" onclick="testConnection()" title="Test API connection" style="font-size:var(--font-sm);padding:10px 16px;">Test</button>
+      <div class="test-feedback" id="testFeedback"></div>
+      <button class="stop-btn" id="stopBtn" onclick="stopGeneration()">Stop</button>
+      <span id="draftStatus" style="font-size:var(--font-xs);color:var(--muted);opacity:0;transition:opacity 0.3s;margin-left:8px;"></span>
+      <div class="token-count" id="tokenCount" style="margin-left:auto;"></div>
+    </div>
+  </div>
+
+  <div class="panel-right" id="studioPanelRight">
+    <div class="panel-header">
+      <div class="panel-title">Generated Card</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="badge badge-green" id="outputBadge" style="display:none;">done</span>
+        <button class="vtab-compare-btn" id="compareToggleBtn" onclick="toggleCompareMode()" title="Side-by-side compare">◑ compare</button>
+        <button class="panel-theme-toggle" onclick="togglePanelTheme('studioPanelRight')" title="Toggle this panel's theme"><span class="ptt-dot"></span><span class="ptt-label">panel</span></button>
+      </div>
+    </div>
+    <div class="generation-progress" id="generationProgress">
+      <div class="progress-steps" id="progressSteps"></div>
+    </div>
+    <div class="quality-gates-panel" id="qualityGatesPanel">
+      <div class="quality-gates-title">Quality Gates <span id="gatesSummary"></span></div>
+      <div class="quality-gates-list" id="qualityGatesList"></div>
+    </div>
+    <div class="model-card-report" id="modelCardReport">
+      <div class="model-card-header">
+        <span class="model-card-title">Quality Validation vs Model Card</span>
+        <span class="model-card-score" id="modelCardScore">--/100</span>
+      </div>
+      <div class="model-card-comparison" id="modelCardComparison"></div>
+      <div class="model-card-actions">
+        <button class="tool-btn" onclick="regenerateWithFixes()">Regenerate with Fixes</button>
+        <button class="tool-btn" onclick="toggleModelCardCategory('all')">Expand All</button>
+        <button class="tool-btn" onclick="clearModelCardReport()">Dismiss</button>
+      </div>
+    </div>
+    <div class="version-tab-strip" id="versionTabStrip"></div>
+    <div class="output-area empty" id="outputArea">Configure the left panel, upload an image, then hit Generate — your character card will appear here.</div>
+    <textarea class="edit-area" id="editArea" spellcheck="false"></textarea>
+    <div class="compare-view" id="compareView">
+      <div class="compare-pane" id="comparePaneA">
+        <div class="compare-pane-header" id="compareLabelA">Version 1</div>
+        <div id="compareContentA"></div>
+      </div>
+      <div class="compare-pane" id="comparePaneB">
+        <div class="compare-pane-header" id="compareLabelB">Version 2</div>
+        <div id="compareContentB"></div>
+      </div>
+    </div>
+    <div class="output-toolbar">
+      <button class="tool-btn" onclick="copyOutput()" title="Copy to clipboard">Copy</button>
+      <button class="tool-btn" onclick="saveToHistory()" title="Save to history">Save</button>
+      <button class="tool-btn" id="btnEdit" onclick="toggleEditMode()" title="Edit the output">Edit</button>
+      <button class="tool-btn" onclick="downloadJson()" title="Download as .json card file">JSON ↓</button>
+      <button class="tool-btn" onclick="openPngExportModal()" title="Export as styled PNG trading card">PNG ↓</button>
+      <button class="tool-btn" onclick="openDiffModal()" title="Show visual diff between versions" id="btnDiff" style="display:none;">Diff</button>
+      <button class="add-to-codex-btn" onclick="addToCodex()" title="Create a Codex lorebook entry from this card" id="btnAddToCodex" style="display:none;">✦ Add to Codex</button>
+      <button class="tool-btn" onclick="clearOutput()" title="Clear output">Clear</button>
+      <div class="output-meta" id="outputMeta"></div>
+    </div>
+    <div class="status-line"><div class="status-dot" id="statusDot"></div><span id="statusText">ready</span></div>
+  </div>
+
+</div>
+
+<div class="studio-mobile-nav" id="studiomobileNav">
+  <button id="navBtnLeft" class="mobile-nav-btn" onclick="showStudioPanel('studioPanelLeft')">⚙ Config</button>
+  <button id="navBtnCenter" class="mobile-nav-btn active" onclick="showStudioPanel('studioPanelCenter')">📷 Input</button>
+  <button id="navBtnRight" class="mobile-nav-btn" onclick="showStudioPanel('studioPanelRight')">✦ Output</button>
+  <button class="mobile-nav-btn mobile-nav-switch" onclick="switchMode('codex')" title="Switch to Codex">📖 Codex</button>
+</div>
+
+</div>
+
+
+<div id="app-codex" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+
+<div class="workspace" id="codexWorkspace">
+
+  <div class="panel-left" id="codexPanelLeft">
+    <div class="panel-header">
+      <span class="panel-title">entries <span id="entryCount" style="color:var(--accent);margin-left:6px;">0</span></span>
+      <button class="gen-btn" style="padding:6px 14px;font-size:var(--font-xs);" onclick="addEntry()">+ new</button>
+    </div>
+    <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="searchInput" placeholder="search entries…" oninput="filterEntries()" /><button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" title="Clear search">×</button></div>
+    <div class="entries-list" id="entriesList">
+      <div class="entries-empty" id="entriesEmpty">
+        <div>No entries yet</div>
+        <div style="font-family:var(--mono);font-style:normal;font-size:var(--font-xs);color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;opacity:0.5;margin-top:4px;">click + new to begin</div>
+      </div>
+    </div>
+    <div class="bottom-bar" style="padding:12px 16px;">
+      <button class="tool-btn" onclick="sortEntries('name')">sort A–Z</button>
+      <button class="tool-btn" onclick="sortEntries('order')">sort #</button>
+      <div style="margin-left:auto;">
+        <button class="danger-btn" onclick="confirmClearAll()">nuke all</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-center" id="codexPanelCenter">
+    <div class="panel-header">
+      <span class="panel-title" id="editorTitle">entry editor</span>
+      <div style="display:flex;align-items:center;gap:8px;"><span class="token-pill" id="entryTokens">0 tokens</span></div>
+    </div>
+    <div class="editor-empty" id="editorEmpty">
+      <div>Select or create an entry</div>
+      <div class="editor-empty-sub">lorebook · world info · memory</div>
+    </div>
+    <div class="editor-fields hidden" id="editorFields">
+      <div class="field-group">
+        <div class="field-label">Entry Name / Comment</div>
+        <input type="text" class="entry-name-input" id="entryName" placeholder="e.g. The Iron Throne, Kingdom of Avelorn…" oninput="updateActiveEntry()" />
+      </div>
+      <div class="field-group">
+        <div class="field-label">Keys / Triggers <span style="color:var(--muted);font-size:10px;font-style:italic;text-transform:none;letter-spacing:0;">press Enter or comma to add</span></div>
+        <div class="keys-input-wrap" id="keysWrap" onclick="document.getElementById('keyInput').focus()">
+          <input type="text" class="key-inline-input" id="keyInput" placeholder="add trigger keywords…" onkeydown="handleKeyInput(event)" />
+        </div>
+        <div class="field-hint">Exact phrases that trigger this entry in chat.</div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Content</div>
+        <textarea class="content-textarea" id="entryContent" rows="8" placeholder="Describe this world element in detail. Use present tense. Be specific and sensory…" oninput="updateActiveEntry();updateTokenCount()"></textarea>
+        <div class="field-hint">Write in-universe facts. Concrete details work better in context.</div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Category</div>
+        <div class="cat-select-wrap" id="categoryPills">
+          <div class="cat-pill active" onclick="setCategory('world')" data-cat="world">world</div>
+          <div class="cat-pill" onclick="setCategory('character')" data-cat="character">character</div>
+          <div class="cat-pill" onclick="setCategory('lore')" data-cat="lore">lore</div>
+          <div class="cat-pill" onclick="setCategory('location')" data-cat="location">location</div>
+          <div class="cat-pill" onclick="setCategory('item')" data-cat="item">item</div>
+          <div class="cat-pill" onclick="setCategory('custom')" data-cat="custom">custom</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field-group">
+          <label>Insertion Order</label>
+          <input type="number" id="entryOrder" value="100" min="0" max="999" oninput="updateActiveEntry()" />
+          <div class="field-hint">Lower = higher priority.</div>
+        </div>
+        <div class="field-group">
+          <label>Scan Depth</label>
+          <div class="slider-row">
+            <input type="range" id="scanDepth" min="1" max="20" value="4" oninput="document.getElementById('scanDepthVal').textContent=this.value;updateActiveEntry()" />
+            <span class="slider-val" id="scanDepthVal">4</span>
+          </div>
+          <div class="field-hint">Messages back to scan.</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field-group">
+          <div class="toggle-row"><label>Enabled</label><div class="toggle on" id="toggleEnabled" onclick="toggleEntryField('enabled')"></div></div>
+          <div class="toggle-row"><label>Case sensitive</label><div class="toggle" id="toggleCase" onclick="toggleEntryField('caseSensitive')"></div></div>
+          <div class="toggle-row"><label>Use regex</label><div class="toggle" id="toggleRegex" onclick="toggleEntryField('useRegex')"></div></div>
+        </div>
+        <div class="field-group">
+          <label>Insertion Position</label>
+          <select id="entryPosition" onchange="updateActiveEntry()">
+            <option value="before_char">Before char defs</option>
+            <option value="after_char">After char defs</option>
+            <option value="before_example">Before examples</option>
+            <option value="after_example">After examples</option>
+            <option value="top_an">@ top AN</option>
+            <option value="bottom_an">@ bottom AN</option>
+          </select>
+          <div class="field-hint">Where in context this entry appears.</div>
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Secondary Keys <span style="color:var(--muted);font-size:10px;font-style:italic;text-transform:none;letter-spacing:0;">optional</span></div>
+        <div class="keys-input-wrap" id="secKeysWrap" onclick="document.getElementById('secKeyInput').focus()">
+          <input type="text" class="key-inline-input" id="secKeyInput" placeholder="add secondary keys…" onkeydown="handleSecKeyInput(event)" />
+        </div>
+        <div class="field-hint">Both primary AND secondary keys must match.</div>
+      </div>
+      <div class="field-group">
+        <label>Priority / Recursion Level</label>
+        <div class="slider-row">
+          <input type="range" id="entryPriority" min="0" max="10" value="10" oninput="document.getElementById('entryPriorityVal').textContent=this.value;updateActiveEntry()" />
+          <span class="slider-val" id="entryPriorityVal">10</span>
+        </div>
+      </div>
+    </div>
+    <div class="status-line" id="codexStatusLine">
+      <div class="status-dot" id="codexStatusDot"></div>
+      <span id="codexStatusText">ready</span>
+      <span style="margin-left:auto;color:var(--muted);opacity:0.4;" id="codexDraftStatus"></span>
+    </div>
+  </div>
+
+  <div class="panel-right" id="codexPanelRight">
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Lorebook Info</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="input-group">
+          <label>Lorebook Name</label>
+          <input type="text" id="lorebookName" placeholder="My World Lorebook" oninput="codexSaveConfig()" />
+        </div>
+        <div class="input-group">
+          <label>Description</label>
+          <textarea id="lorebookDesc" rows="3" placeholder="Brief notes about this lorebook…" style="resize:vertical;" oninput="codexSaveConfig()"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Stats</span>
+        <span class="section-chevron open">▾</span>
+      </div>
+      <div class="section-body open">
+        <div class="stats-row">
+          <div class="stat-box"><div class="stat-val" id="statEntries">0</div><div class="stat-lbl">Entries</div></div>
+          <div class="stat-box"><div class="stat-val" id="statEnabled">0</div><div class="stat-lbl">Enabled</div></div>
+          <div class="stat-box"><div class="stat-val" id="statTokens">0</div><div class="stat-lbl">~Tokens</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Global Defaults</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="input-group">
+          <label>Default Scan Depth</label>
+          <div class="slider-row">
+            <input type="range" id="globalScanDepth" min="1" max="20" value="4" oninput="document.getElementById('globalScanDepthVal').textContent=this.value;codexSaveConfig()" />
+            <span class="slider-val" id="globalScanDepthVal">4</span>
+          </div>
+        </div>
+        <div class="toggle-row" style="margin-top:8px;"><label>Recursive scanning</label><div class="toggle" id="toggleRecursive" onclick="toggleGlobal('recursive')"></div></div>
+        <div class="toggle-row"><label>Case sensitive (global)</label><div class="toggle" id="toggleGlobalCase" onclick="toggleGlobal('case')"></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Export Format</span>
+        <span class="section-chevron open">▾</span>
+      </div>
+      <div class="section-body open">
+        <div class="format-chips" id="formatChips">
+          <div class="format-chip active" data-fmt="tavern" onclick="setFormat('tavern')"><span class="fc-name">SillyTavern</span><span class="fc-sub">lorebook.json</span></div>
+          <div class="format-chip" data-fmt="janitor" onclick="setFormat('janitor')"><span class="fc-name">Janitor AI</span><span class="fc-sub">world_info.json</span></div>
+          <div class="format-chip" data-fmt="agnai" onclick="setFormat('agnai')"><span class="fc-name">Agnai</span><span class="fc-sub">memory-book</span></div>
+          <div class="format-chip" data-fmt="kobold" onclick="setFormat('kobold')"><span class="fc-name">KoboldAI</span><span class="fc-sub">world_info</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-section">
+      <div class="ai-section-label">✦ AI Assistant</div>
+      <div class="input-group">
+        <label>API Key <span style="font-size:10px;opacity:0.5;">(uses Studio key if blank)</span></label>
+        <div class="key-row">
+          <input type="password" id="codexApiKey" placeholder="uses Studio key by default…" oninput="codexUpdateApiStatus()" />
+          <div class="icon-btn" title="Show/hide key" onclick="codexToggleKeyVis()">👁</div>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Assist Mode</label>
+        <select id="assistMode">
+          <option value="expand">Expand content</option>
+          <option value="keys">Suggest keys</option>
+          <option value="rewrite">Rewrite for AI</option>
+          <option value="split">Split into entries</option>
+          <option value="worldbuild">Worldbuild from name</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Context hint <span style="font-size:10px;opacity:0.5;">(optional)</span></label>
+        <input type="text" id="assistContext" placeholder="e.g. dark fantasy, sci-fi, romance…" />
+      </div>
+      <div class="input-group" style="margin-top:6px;">
+        <button class="gen-btn" id="assistBtn" style="width:100%;justify-content:center;box-shadow:0 0 14px rgba(212,175,96,0.2);" onclick="aiAssistEntry()">
+          <span class="assist-star">✦</span> AI Assist
+        </button>
+      </div>
+    </div>
+
+    <div class="section" style="margin-top:12px;">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-label">Actions</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <button class="tool-btn" style="text-align:left;" onclick="bulkEnable(true)">✓ enable all entries</button>
+          <button class="tool-btn" style="text-align:left;" onclick="bulkEnable(false)">✗ disable all entries</button>
+          <button class="tool-btn" style="text-align:left;" onclick="duplicateEntry()">⎘ duplicate entry</button>
+          <button class="tool-btn" style="text-align:left;" onclick="autoGenerateKeys()">✦ auto-generate keys</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="codex-mobile-nav" id="codexMobileNav">
+  <button class="nav-btn active" id="codexNavBtnLeft" onclick="showCodexPanel('codexPanelLeft')"><span>☰</span><span>Entries</span></button>
+  <button class="nav-btn" id="codexNavBtnCenter" onclick="showCodexPanel('codexPanelCenter')"><span>✎</span><span>Editor</span></button>
+  <button class="nav-btn" id="codexNavBtnRight" onclick="showCodexPanel('codexPanelRight')"><span>⚙</span><span>Settings</span></button>
+  <button class="nav-btn nav-btn-switch" onclick="switchMode('studio')"><span>✦</span><span>Studio</span></button>
+</nav>
+
+</div>
+
+
+<div class="modal-overlay" id="supportModal">
+  <div class="modal" style="width:360px;text-align:center;padding:36px 28px;">
+    <button class="modal-close" onclick="toggleSupport()">×</button>
+    <div class="modal-title" style="margin-bottom:14px;">Support The Creator?</div>
+    <div style="font-size:var(--font-sm);color:var(--text2);margin-bottom:28px;line-height:1.7;">If you enjoy using C-COS and want to help support its continued development, consider leaving a tip!</div>
+    <a href="https://ko-fi.com/niste" target="_blank" class="gen-btn" style="display:inline-flex;justify-content:center;width:100%;text-decoration:none;font-size:var(--font-base);"><span>☕</span> ko-fi.com/niste</a>
+  </div>
+</div>
+
+<div class="modal-overlay" id="historyModal">
+  <div class="modal" style="width:520px;padding:0;overflow:hidden;">
+    <div class="panel-header" style="position:static;background:var(--bg2);">
+      <div class="panel-title">Saved Cards</div>
+      <button onclick="toggleHistory()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;border-radius:var(--radius);">×</button>
+    </div>
+    <div id="historyList" style="max-height:520px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tosModal">
+  <div class="modal" style="width:540px;padding:32px 28px;color:var(--text2);line-height:1.65;font-size:var(--font-sm);">
+    <div class="modal-title" style="margin-bottom:14px;text-align:center;">Privacy & Terms</div>
+    <p style="text-align:center;margin-bottom:18px;">By using C-COS Studio and C-COS Codex, you agree to the following terms.</p>
+    <p style="text-align:center;margin-bottom:18px;color:var(--muted);font-size:var(--font-xs);">Last Updated: April 24th, 2026</p>
+    <h3 style="color:var(--text);font-size:var(--font-sm);margin:18px 0 9px;font-family:var(--mono);">1. API Keys & Security</h3>
+    <p>Your API keys are <strong>never</strong> collected, logged, or stored by me. They are saved entirely locally in your browser's <code>localStorage</code>. They are transmitted solely to communicate with your selected AI provider.</p>
+    <h3 style="color:var(--text);font-size:var(--font-sm);margin:18px 0 9px;font-family:var(--mono);">2. Liability & Content</h3>
+    <p>You are solely responsible for ensuring your prompts and generated content comply with the Terms of Service of your chosen API provider. I am not affiliated with OpenAI, Anthropic, Google, JanitorAI, or SillyTavern.</p>
+    <h3 style="color:var(--text);font-size:var(--font-sm);margin:18px 0 9px;font-family:var(--mono);">3. As-Is Software</h3>
+    <p>I provide this tool "as is" without warranty. I do not see or host your images. Your history, lorebooks, and settings are stored locally — clearing browser data will delete them permanently.</p>
+    <h3 style="color:var(--text);font-size:var(--font-sm);margin:18px 0 9px;font-family:var(--mono);">4. User Generated Content</h3>
+    <p>Character cards or lorebooks you create are your own intellectual property. Use of this tool to generate illegal content is strictly prohibited.</p>
+    <h3 style="color:var(--text);font-size:var(--font-sm);margin:18px 0 9px;font-family:var(--mono);">5. Voluntary Support</h3>
+    <p>Any Ko-fi support is strictly voluntary and tip-based. These contributions do not grant ownership stakes or guaranteed future updates.</p>
+    <h3 style="color:var(--text);font-size:var(--font-sm);margin:18px 0 9px;font-family:var(--mono);">6. Age Requirements</h3>
+    <p>By using this tool, you represent that you meet the minimum age requirements of your chosen AI provider and agree to comply with all applicable laws.</p>
+    <div style="text-align:center;margin-top:28px;">
+      <button class="gen-btn" onclick="acceptTOS()" style="padding:12px 36px;font-size:var(--font-base);display:inline-flex;width:auto;">I Agree &amp; I am of Legal Age</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-title">Export Lorebook</div>
+    <button class="modal-close" onclick="codexCloseExportModal()">×</button>
+    <div class="input-group"><label>Format: <span id="exportFormatLabel" style="color:var(--accent);">SillyTavern</span></label></div>
+    <div class="input-group">
+      <div style="font-size:var(--font-xs);color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;">Preview</div>
+      <div class="export-preview" id="exportPreview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="codexCopyExport()">copy JSON</button>
+      <button class="gen-btn" onclick="codexDownloadExport()">↓ download</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="assistModal">
+  <div class="modal">
+    <div class="modal-title">AI Assist</div>
+    <button class="modal-close" onclick="closeAssistModal()">×</button>
+    <div id="assistOutput" style="font-size:var(--font-sm);line-height:1.85;color:var(--text);white-space:pre-wrap;min-height:80px;"></div>
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="closeAssistModal()">discard</button>
+      <button class="gen-btn" id="applyAssistBtn" onclick="applyAssist()">apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-title">Import Lorebook</div>
+    <button class="modal-close" onclick="codexCloseImportModal()">×</button>
+    <div class="input-group">
+      <label>Paste JSON or drop a .json file below</label>
+      <textarea id="importJson" rows="10" placeholder='{"entries":{"0":{"key":["keyword"],"content":"…"}}}' style="resize:vertical;font-size:var(--font-xs);"></textarea>
+    </div>
+    <div id="importError" style="color:var(--danger);font-size:var(--font-xs);margin-top:8px;display:none;"></div>
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="codexCloseImportModal()">cancel</button>
+      <button class="gen-btn" onclick="doImport()">import</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-modal-overlay" id="confirmModal">
+  <div class="confirm-modal">
+    <div class="confirm-modal-icon" id="confirmIcon">⚠</div>
+    <div class="confirm-modal-title" id="confirmTitle">Are you sure?</div>
+    <div class="confirm-modal-body" id="confirmBody">This action cannot be undone.</div>
+    <div class="confirm-modal-footer">
+      <button class="confirm-cancel-btn" onclick="closeConfirmModal()">Cancel</button>
+      <button class="confirm-ok-btn" id="confirmOkBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="batchModal">
+  <div class="modal" style="width:520px;">
+    <button class="modal-close" onclick="closeBatchModal()">×</button>
+    <div class="modal-title">Batch Generation</div>
+    <p style="font-size:var(--font-xs);color:var(--muted);margin-bottom:14px;line-height:1.6;">Generate cards for multiple images in sequence. Each image is processed with the current configuration. Results are auto-saved to history.</p>
+
+    <div class="batch-delay-row">
+      <label>Delay between requests</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+        <input type="range" id="batchDelay" min="2" max="30" step="1" value="5" style="width:100px;" oninput="document.getElementById('batchDelayVal').textContent=this.value+'s'">
+        <span class="slider-val" id="batchDelayVal" style="min-width:30px;">5s</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="margin-bottom:8px;">Image Queue</label>
+      <div id="batchDropZone" class="drop-zone" style="min-height:80px;" onclick="document.getElementById('batchFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleBatchDrop(event)">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:6px;">
+          <div style="font-size:20px;opacity:0.4;">⬆</div>
+          <div style="font-size:var(--font-xs);color:var(--text2);">Drop images here or click to add</div>
+        </div>
+      </div>
+      <input type="file" id="batchFileInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple style="display:none" onchange="handleBatchFileSelect(event)">
+    </div>
+
+    <div class="batch-modal-grid" id="batchQueue"></div>
+    <div class="batch-progress-bar" id="batchProgressBar" style="display:none;"><div class="batch-progress-fill" id="batchProgressFill" style="width:0%"></div></div>
+
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="clearBatchQueue()" id="batchClearBtn">Clear Queue</button>
+      <span style="flex:1;font-size:var(--font-xs);color:var(--muted);align-self:center;" id="batchStatusText"></span>
+      <button class="tool-btn" onclick="closeBatchModal()">Close</button>
+      <button class="gen-btn" onclick="runBatch()" id="batchRunBtn"><div class="spinner"></div><span>Run Batch</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay diff-modal" id="diffModal">
+  <div class="modal" style="width:820px;">
+    <button class="modal-close" onclick="closeDiffModal()">×</button>
+    <div class="modal-title">◑ Version Diff</div>
+    <div class="diff-selector">
+      <label>Compare</label>
+      <select id="diffVersionA" onchange="renderDiff()"></select>
+      <label>→</label>
+      <select id="diffVersionB" onchange="renderDiff()"></select>
+    </div>
+    <div class="diff-container" id="diffContainer">
+      <div class="diff-pane" id="diffPaneA">
+        <div class="diff-pane-header">Version A</div>
+        <div id="diffLinesA"></div>
+      </div>
+      <div class="diff-pane" id="diffPaneB">
+        <div class="diff-pane-header">Version B</div>
+        <div id="diffLinesB"></div>
+      </div>
+    </div>
+    <div class="diff-legend">
+      <span><div class="diff-legend-dot" style="background:rgba(95,191,138,0.5)"></div> Added</span>
+      <span><div class="diff-legend-dot" style="background:rgba(224,96,96,0.4)"></div> Removed</span>
+      <span><div class="diff-legend-dot" style="background:var(--border2)"></div> Unchanged</span>
+    </div>
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="closeDiffModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pngModal">
+  <div class="modal" style="width:480px;">
+    <button class="modal-close" onclick="closePngModal()">×</button>
+    <div class="modal-title">◈ Export as PNG Card</div>
+    <p style="font-size:var(--font-xs);color:var(--muted);margin-bottom:14px;line-height:1.6;">Render the card as a styled trading-card image. The card name and content preview are taken from the current output.</p>
+
+    <div style="margin-bottom:12px;">
+      <label>Card Style</label>
+      <div class="png-style-chips">
+        <div class="png-style-chip active" data-pngstyle="noir" onclick="setPngStyle(this)">Noir</div>
+        <div class="png-style-chip" data-pngstyle="amber" onclick="setPngStyle(this)">Amber</div>
+        <div class="png-style-chip" data-pngstyle="crimson" onclick="setPngStyle(this)">Crimson</div>
+        <div class="png-style-chip" data-pngstyle="arctic" onclick="setPngStyle(this)">Arctic</div>
+        <div class="png-style-chip" data-pngstyle="forest" onclick="setPngStyle(this)">Forest</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label>Card Title <span style="font-size:10px;opacity:0.5;">(auto-filled from first line)</span></label>
+      <input type="text" id="pngCardTitle" placeholder="Character name…" style="margin-top:4px;">
+    </div>
+
+    <div class="card-preview-wrap" id="cardPreviewWrap">
+      <div class="card-preview-frame" id="cardPreviewFrame">
+        <div class="card-frame-header">
+          <span class="card-frame-title" id="cardFrameTitle">Character</span>
+          <span class="card-frame-badge">C-COS</span>
+        </div>
+        <div class="card-frame-image-wrap" id="cardFrameImageWrap">
+          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:var(--font-xs);opacity:0.4;">no image</div>
+          <div class="card-frame-image-overlay"></div>
+        </div>
+        <div class="card-frame-content" id="cardFrameContent" style="font-size:10px;"></div>
+        <div class="card-frame-footer">
+          <span>Character Card</span>
+          <span id="cardFrameDate"></span>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="cardPngCanvas"></canvas>
+
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="closePngModal()">Close</button>
+      <button class="gen-btn" onclick="downloadCardPng()"><span>Download PNG</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay shortcuts-help-modal" id="shortcutsModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeShortcutsModal()">×</button>
+    <div class="modal-title">Keyboard Shortcuts</div>
+    <div class="shortcuts-list">
+      <div class="shortcut-key">Ctrl/Cmd + Enter</div><div class="shortcut-desc">Generate card</div>
+      <div class="shortcut-key">Ctrl/Cmd + S</div><div class="shortcut-desc">Save to history</div>
+      <div class="shortcut-key">Ctrl/Cmd + C</div><div class="shortcut-desc">Copy output to clipboard</div>
+      <div class="shortcut-key">Ctrl/Cmd + .</div><div class="shortcut-desc">Stop generation</div>
+      <div class="shortcut-key">Ctrl/Cmd + E</div><div class="shortcut-desc">Toggle edit mode</div>
+      <div class="shortcut-key">Ctrl/Cmd + 1-9</div><div class="shortcut-desc">Switch to version N</div>
+      <div class="shortcut-key">Esc</div><div class="shortcut-desc">Close modals / Stop generation</div>
+      <div class="shortcut-key">?</div><div class="shortcut-desc">Show this help</div>
+    </div>
+    <div class="modal-footer">
+      <button class="tool-btn" onclick="closeShortcutsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<button class="guide-fab" id="guideFab" onclick="toggleGuide()" title="Ask your C-COS guide">
+  <div class="guide-fab-pulse" id="guideFabPulse"></div>
+  ✦
+</button>
+
+<div class="guide-panel" id="guidePanel">
+
+  <div class="guide-sidebar">
+    <div class="guide-sidebar-header">
+      <span class="guide-sidebar-title">Chats</span>
+      <button class="guide-new-btn" onclick="guideNewChat()" title="New chat">+</button>
+    </div>
+    <div class="guide-chat-list" id="guideChatList"></div>
+  </div>
+
+  <div class="guide-main">
+    <div class="guide-header">
+      <div class="guide-avatar">✦</div>
+      <div class="guide-header-info">
+        <div class="guide-header-name" id="guideHeaderName">C-COS Guide</div>
+        <div class="guide-header-sub">character &amp; lorebook assistant</div>
+      </div>
+      <div class="guide-header-status">
+        <div class="guide-status-dot" id="guideStatusDot"></div>
+        <span id="guideStatusText">ready</span>
+      </div>
+      <div class="guide-header-actions">
+        <button class="guide-hdr-btn danger" onclick="guideClearChat()" title="Clear this chat">↺</button>
+        <button class="guide-close" onclick="toggleGuide()" title="Close">×</button>
+      </div>
+    </div>
+
+    <div class="guide-chips" id="guideChips">
+      <span class="guide-chip" onclick="guideChipClick('How do I generate my first card?')">first card</span>
+      <span class="guide-chip" onclick="guideChipClick('Explain lorebook entries')">lorebook</span>
+      <span class="guide-chip" onclick="guideChipClick('What do scenarios A–F mean?')">scenarios</span>
+      <span class="guide-chip" onclick="guideChipClick('Best settings for my provider')">API tips</span>
+      <span class="guide-chip" onclick="guideChipClick('What is friction architecture?')">friction</span>
+      <span class="guide-chip" onclick="guideChipClick('Give me a character concept')">inspire me</span>
+    </div>
+
+    <div class="guide-no-key" id="guideNoKey">
+      <div class="guide-no-key-icon">🔑</div>
+      <div class="guide-no-key-text">The guide uses your configured API key.<br>Set one in the <b>Provider</b> section first.</div>
+      <button class="guide-no-key-btn" onclick="openSettings();toggleGuide()">Open Settings</button>
+    </div>
+
+    <div class="guide-messages" id="guideMessages"></div>
+
+    <div style="padding:0 12px 4px;flex-shrink:0;">
+      <div class="guide-typing" id="guideTyping">
+        <div class="guide-typing-dot"></div>
+        <div class="guide-typing-dot"></div>
+        <div class="guide-typing-dot"></div>
+      </div>
+    </div>
+
+    <div class="guide-input-row">
+      <textarea class="guide-input" id="guideInput" placeholder="Ask anything about C-COS…" rows="1"
+        onkeydown="guideHandleKey(event)" oninput="guideAutoResize(this)"></textarea>
+      <button class="guide-send" id="guideSendBtn" onclick="guideSend()" title="Send">↑</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
