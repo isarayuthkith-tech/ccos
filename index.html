@@ -163,6 +163,7 @@
         <div class="toggle-row"><label>Streaming</label><div class="toggle on" id="streamToggle" onclick="this.classList.toggle('on');saveConfig()"></div></div>
         <div class="toggle-row"><label>Thinking phase (Gemini)</label><div class="toggle on" id="thinkToggle" onclick="this.classList.toggle('on');saveConfig()"></div></div>
         <div class="toggle-row"><label>JLLM mode (&lt;2k tokens)</label><div class="toggle" id="jllmToggle" onclick="this.classList.toggle('on'); saveConfig(); updateJLLMModeUI();"></div></div>
+        <div class="toggle-row"><label>Multi-step reasoning (Beta)</label><div class="toggle" id="reasoningToggle" onclick="this.classList.toggle('on'); saveConfig(); toggleReasoning(this.classList.contains('on'));" title="Enable parallel analysis → contradiction → mapping → generation → critique → fix pipeline"></div></div>
       </div>
     </div>
 
@@ -928,6 +929,15 @@
 
 <script src="data.js"></script>
 <script src="engine.js"></script>
+<!-- Reasoning Pipeline (Parallel Multi-Step) -->
+<script src="reasoning/pipeline.js"></script>
+<script src="reasoning/analysis.js"></script>
+<script src="reasoning/contradiction.js"></script>
+<script src="reasoning/mapping.js"></script>
+<script src="reasoning/generation.js"></script>
+<script src="reasoning/critique.js"></script>
+<script src="reasoning/fix.js"></script>
+<script src="reasoning/index.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>

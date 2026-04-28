@@ -1005,6 +1005,7 @@ var state = {
   streaming: true,
   thinking: true,
   jllmMode: false,
+  reasoningEnabled: false,
   scenario: 'none',
   friction: '',
   loop: '',

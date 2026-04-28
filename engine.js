@@ -85,6 +85,7 @@ function applyStateToUI() {
   if (g('thinkToggle')) g('thinkToggle').classList.toggle('on', state.thinking);
   if (g('jllmToggle')) g('jllmToggle').classList.toggle('on', !!state.jllmMode);
   updateJLLMModeUI();
+  if (g('reasoningToggle')) g('reasoningToggle').classList.toggle('on', !!state.reasoningEnabled);
   document.querySelectorAll('.scenario-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.scenario === state.scenario);
   });
@@ -109,6 +110,7 @@ function saveConfig() {
   if (g('streamToggle')) state.streaming = g('streamToggle').classList.contains('on');
   if (g('thinkToggle')) state.thinking = g('thinkToggle').classList.contains('on');
   if (g('jllmToggle')) state.jllmMode = g('jllmToggle').classList.contains('on');
+  if (g('reasoningToggle')) state.reasoningEnabled = g('reasoningToggle').classList.contains('on');
   if (g('frictionSelect')) state.friction = g('frictionSelect').value;
   if (g('loopSelect')) state.loop = g('loopSelect').value;
   if (g('visibilitySelect')) state.visibility = g('visibilitySelect').value;
@@ -245,8 +247,6 @@ function toggleEditMode(forceExit = false) {
 }
 
 function updateVersionUI() {
-  // We use the overridden updateVersionUI (defined later in the code) to handle renderVersionTabs,
-  // but if it's missing, this empty block acts as a safe fallback instead of crashing on the removed versionControl div.
 }
 
 function prevVersion() {
@@ -315,8 +315,139 @@ async function generate() {
 
   abortController = new AbortController();
 
-  setGenerationStep(3);
+  // Check if multi-step reasoning is enabled
+  const useReasoning = state.reasoningEnabled || REASONING_DEFAULTS?.enabled;
+  
+  if (useReasoning && typeof runReasoningGeneration === 'function') {
+    // Use parallel multi-step reasoning pipeline
+    await _runReasoningGeneration(key, providerUrl, model);
+  } else {
+    // Use legacy single-prompt generation
+    await _runLegacyGeneration(key, providerUrl, model);
+  }
+}
 
+async function _runReasoningGeneration(key, providerUrl, model) {
+  const maxTokensForCall = state.jllmMode ? 2000 : state.maxTokens;
+  
+  const inputs = {
+    images: imageDataArray,
+    model: model || 'gemini-2.0-flash',
+    apiFormat: state.apiFormat,
+    providerUrl: providerUrl,
+    apiKey: key,
+    temperature: state.temp,
+    topP: state.topP,
+    maxTokens: maxTokensForCall
+  };
+
+  try {
+    let streamedContent = '';
+    
+    const result = await runReasoningGeneration(inputs, {
+      onProgress: (progress) => {
+        // Update UI with parallel step progress
+        const stepNames = {
+          'analysis': 'Image Analysis',
+          'contradiction': 'Contradiction Brainstorm',
+          'mapping': 'Psychology Mapping',
+          'generation': 'Card Generation',
+          'critique': 'Quality Check',
+          'fix': 'Refining'
+        };
+        
+        const stepLabel = stepNames[progress.step] || progress.step;
+        const statusIcon = progress.status === 'running' ? '⟳' : 
+                          progress.status === 'completed' ? '✓' : 
+                          progress.status === 'failed' ? '✗' : '○';
+        
+        setStatus('running', `${statusIcon} ${stepLabel}${progress.detail ? ': ' + progress.detail : ''}`);
+        
+        // During generation, show streaming content instead of static label
+        if (progress.step === 'generation' && progress.status === 'running' && streamedContent) {
+          // Don't overwrite - streaming callback handles it
+        } else if (progress.status === 'running') {
+          setOutput(`[${stepLabel}]\n${progress.detail || 'In progress...'}`, true);
+        }
+      },
+      onStream: (chunk, fullText) => {
+        // Live streaming of generated card content
+        streamedContent = fullText;
+        setOutput(fullText, true);
+      },
+      onComplete: (finalResult) => {
+        outputBuffer = finalResult.content;
+      },
+      onError: (error) => {
+        console.error('Reasoning pipeline error:', error);
+        toast('Reasoning pipeline failed: ' + error.message, 'error');
+      }
+    });
+
+    // Display final result
+    if (result && result.content) {
+      outputBuffer = result.content;
+      setOutput(outputBuffer);
+      
+      // Store generation info
+      if (outputBuffer.trim().length > 0) {
+        sessionGenerations.push(outputBuffer);
+        currentVersionIndex = sessionGenerations.length - 1;
+        clearDraft();
+      }
+      
+      // Update quality gates with reasoning results
+      if (result.finalCritique) {
+        _updateQualityGatesFromCritique(result.finalCritique);
+      }
+      
+      // Model card scoring with reasoning data
+      const modelCardReport = validateAgainstModelCard(outputBuffer);
+      if (modelCardReport) {
+        // Enhance with reasoning quality data if available
+        if (result.iterations > 0) {
+          modelCardReport.reasoningInfo = {
+            iterations: result.iterations,
+            totalTime: result.totalTime
+          };
+        }
+        displayModelCardReport(modelCardReport);
+      }
+      
+      const elapsed = ((Date.now() - genStartTime) / 1000).toFixed(1);
+      document.getElementById('outputBadge').style.display = '';
+      document.getElementById('outputMeta').textContent = 
+        (sessionGenerations.length > 1 ? `Version ${currentVersionIndex + 1} · ` : '') + 
+        `reasoning · ${result.iterations || 0} iter · ${elapsed}s · ${outputBuffer.length} chars`;
+      setStatus('done', `done in ${elapsed}s · reasoning pipeline`);
+    }
+
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      setStatus('', 'stopped');
+    } else {
+      console.error('Reasoning generation failed:', error);
+      setStatus('error', 'error: ' + error.message);
+      toast('Reasoning failed: ' + error.message + '. Falling back to standard mode.', 'error');
+      
+      // Fallback to legacy generation
+      await _runLegacyGeneration(key, providerUrl, model);
+    }
+  }
+
+  // Cleanup
+  const genBtn = document.getElementById('genBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  genBtn.disabled = false;
+  genBtn.classList.remove('loading');
+  document.getElementById('genBtnText').textContent = 'Generate Card';
+  stopBtn.classList.remove('visible');
+  setTimeout(() => setGenerationStep(-1), 2000);
+}
+
+async function _runLegacyGeneration(key, providerUrl, model) {
+  setGenerationStep(3);
+  
   const maxTokensForCall = state.jllmMode ? 2000 : state.maxTokens;
 
   try {
@@ -343,6 +474,8 @@ async function generate() {
   }
   updateVersionUI();
 
+  const genBtn = document.getElementById('genBtn');
+  const stopBtn = document.getElementById('stopBtn');
   genBtn.disabled = false;
   genBtn.classList.remove('loading');
   document.getElementById('genBtnText').textContent = 'Generate Card';
@@ -357,7 +490,6 @@ async function generate() {
     document.getElementById('outputMeta').textContent = (sessionGenerations.length > 1 ? `Version ${currentVersionIndex + 1} · ` : '') + elapsed + 's · ' + outputBuffer.length + ' chars';
     setStatus('done', 'done in ' + elapsed + 's');
     
-    // Run model card quality validation
     const modelCardReport = validateAgainstModelCard(outputBuffer);
     if (modelCardReport) {
       displayModelCardReport(modelCardReport);
@@ -365,6 +497,15 @@ async function generate() {
   }
 
   setTimeout(() => setGenerationStep(-1), 2000);
+}
+
+function _updateQualityGatesFromCritique(critique) {
+  if (!critique || !critique.gates) return;
+  
+  critique.gates.forEach(gate => {
+    const status = gate.passed ? 'pass' : gate.severity === 'critical' ? 'fail' : 'warn';
+    setQualityGate(gate.id, status, gate.finding);
+  });
 }
 
 async function generateGemini(key, baseUrl, systemPrompt, userMessage, maxTokensForCall) {
@@ -584,7 +725,7 @@ function nukeData() {
     providerUrl: '', apiFormat: 'openai', model: '', apiKey: '',
     temp: 1.0, maxTokens: 4096, topP: 0.95, contextWindow: 32768,
     multimodalConfirmed: false, streaming: true, thinking: true, jllmMode: false,
-    scenario: 'none', friction: '', loop: '', visibility: '',
+    reasoningEnabled: false, scenario: 'none', friction: '', loop: '', visibility: '',
   };
   
   sessionGenerations = [];
